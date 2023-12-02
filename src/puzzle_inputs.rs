@@ -48,6 +48,15 @@ pub fn get_puzzle_input(day: i32, part: i32) -> String{
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::prelude::*;
+    use chrono_tz::America::New_York;
+
+    fn get_current_day_of_challenge() -> i32 {
+        let now = New_York.from_utc_datetime(&Utc::now().naive_utc());
+        let start_date = New_York.with_ymd_and_hms(2023, 12, 1, 0, 0, 0).unwrap();
+        let days = now - start_date;
+        (days.num_days() + 1).min(25) as i32
+    }
 
     #[test]
     fn test_get_puzzle_input_for_day_1() {
@@ -58,7 +67,7 @@ mod tests {
 
     #[test]
     fn test_get_puzzle_input_for_days() {
-        let curr_day = 2;
+        let curr_day = get_current_day_of_challenge();
         (1..=curr_day).into_iter().for_each(|d| {
             let input = get_puzzle_input(d, 1);
             assert!(input.len() > 0);
