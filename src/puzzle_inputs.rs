@@ -55,4 +55,14 @@ mod tests {
         assert!(input.len() > 0);
         assert!(!input.contains("Puzzle inputs differ by user."))
     }
+
+    #[test]
+    fn test_get_puzzle_input_for_days() {
+        let curr_day = 2;
+        (1..=curr_day).into_iter().for_each(|d| {
+            let input = get_puzzle_input(d, 1);
+            assert!(input.len() > 0);
+            assert!(!input.contains("Puzzle inputs differ by user."))
+        })
+    }
 }
