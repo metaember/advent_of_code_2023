@@ -24,6 +24,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "chrono-tz",
+ "colored 2.0.4",
  "itertools",
  "k9",
  "once_cell",
@@ -173,6 +174,17 @@ dependencies = [
  "is-terminal",
  "lazy_static",
  "winapi",
+]
+
+[[package]]
+name = "colored"
+version = "2.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2674ec482fbc38012cf31e6c42ba0177b431a0cb6f15fe40efa5aab1bda516f6"
+dependencies = [
+ "is-terminal",
+ "lazy_static",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -569,7 +581,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32ddb58b0079a063218472916af599f2753ccb40942cdaba9d1f3fefccef17a9"
 dependencies = [
  "anyhow",
- "colored",
+ "colored 1.9.4",
  "diff",
  "lazy_static",
  "libc",
