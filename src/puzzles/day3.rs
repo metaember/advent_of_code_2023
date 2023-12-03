@@ -252,16 +252,11 @@ pub fn part1(input: &str) -> i32 {
         .enumerate()
         .map(|(row, l)| {
             l.into_iter()
-                // .map(|num| {
-                //     println!("{} {:?}", schematic.has_adjacent_symbol(row, num), num);
-                //     num
-                // })
                 .filter(|&num| schematic.has_adjacent_symbol(row, num))
                 .map(|n| n.number)
                 .sum::<i32>()
         })
         .sum();
-    // dbg!(schematic);
     result
 }
 
@@ -277,22 +272,13 @@ pub fn part2(input: &str) -> i32 {
                 .filter(|s| s.symbol == '*')
                 .map(move |s| (row, s))
         })
-        .map(|(row, symbol)| {
-            println!(
-                "{:?} {:?}",
-                schematic.maybe_gear_value(row, &symbol),
-                symbol
-            );
-            (row, symbol)
-        })
         .filter_map(|(row, symbol)| schematic.maybe_gear_value(row, &symbol))
         .sum();
-    // dbg!(schematic);
     result
 }
 
 #[cfg(test)]
-mod test_day_2 {
+mod test_day_3 {
     use super::{part1, part2, Schematic};
     use crate::puzzle_inputs;
 
@@ -319,7 +305,7 @@ mod test_day_2 {
     }
 
     #[test]
-    fn test_custom_example() {
+    fn test_part_1_custom_example() {
         let example = "\
 ..+.222$.......458.817....66..
 ..............+...........*...
@@ -350,9 +336,7 @@ mod test_day_2 {
     fn test_part_2() {
         let input1 = puzzle_inputs::get_puzzle_input(3, 1);
         let res = part2(&input1);
-        k9::assert_equal!(res, 85010461);
-
         Schematic::print_colored_adjacencies_with_gears(input1.as_str());
-        todo!();
+        k9::assert_equal!(res, 85010461);
     }
 }
