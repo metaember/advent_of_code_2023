@@ -210,6 +210,38 @@ impl Schematic {
             println!();
         }
     }
+
+    pub fn print_colored_adjacencies_with_gears(s: &str) {
+        let schematic: Schematic = s.trim().parse().unwrap();
+        for (row, line) in s.trim().lines().enumerate() {
+            let this_row_numbers = schematic.numbers.get(row).unwrap();
+            let this_row_symbols = schematic.symbols.get(row).unwrap();
+            for (col, char) in line.chars().enumerate() {
+                if char.is_numeric() {
+                    if this_row_numbers.iter().any(|n| {
+                        schematic.has_adjacent_symbol(row, n) && n.start <= col && n.end >= col
+                    }) {
+                        // has adjacency
+                        print!("{}", char.to_string().blue());
+                    } else {
+                        print!("{}", char.to_string());
+                    }
+                } else if char == '*' {
+                    if this_row_symbols
+                        .iter()
+                        .any(|s| schematic.maybe_gear_value(row, s).is_some() && s.index == col)
+                    {
+                        print!("{}", char.to_string().green());
+                    } else {
+                        print!("{}", char.to_string().red());
+                    }
+                } else {
+                    print!("{}", char.to_string())
+                }
+            }
+            println!();
+        }
+    }
 }
 
 pub fn part1(input: &str) -> i32 {
@@ -319,5 +351,8 @@ mod test_day_2 {
         let input1 = puzzle_inputs::get_puzzle_input(3, 1);
         let res = part2(&input1);
         k9::assert_equal!(res, 85010461);
+
+        Schematic::print_colored_adjacencies_with_gears(input1.as_str());
+        todo!();
     }
 }
