@@ -253,7 +253,7 @@ humidity-to-location map:
     fn day5_p2_real() {
         let input2 = puzzle_inputs::get_puzzle_input(5, 1);
         let res = part2(&input2);
-        k9::snapshot!(res);
-        k9::assert_equal!(res, EXAMPLE_OUTPUT_PART_2);
+        k9::snapshot!(res, "1493866");
+        k9::assert_equal!(res, 1493866);
     }
 }
