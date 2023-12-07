@@ -1,10 +1,4 @@
 use anyhow::{Error, Result};
-use colored::*;
-use indicatif::ProgressIterator;
-use itertools::Itertools;
-use rayon::prelude::*;
-use std::collections::{HashMap, HashSet};
-use toml::map;
 
 #[derive(Debug)]
 struct PuzzleInput {
@@ -144,7 +138,7 @@ Distance:  9  40  200
 
     #[test]
     fn day6_p2_example() {
-        let res = solve_poly(71530, 940200);
+        // let res = solve_poly(71530, 940200);
         let res = part2(EXAMPLE_INPUT_PART_2);
         k9::snapshot!(res, "71503");
         k9::assert_equal!(res, EXAMPLE_OUTPUT_PART_2);
@@ -152,9 +146,8 @@ Distance:  9  40  200
 
     #[test]
     fn day6_p2_real() {
-        let input2 = puzzle_inputs::get_puzzle_input(6, 1);
         // let res = solve_poly(40829166, 277133813491063);
-
+        let input2 = puzzle_inputs::get_puzzle_input(6, 1);
         let res = part2(&input2);
 
         k9::snapshot!(res, "23632299");
