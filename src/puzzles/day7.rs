@@ -1,11 +1,18 @@
 use anyhow::{Error, Result};
-use colored::*;
-use indicatif::ProgressIterator;
 use itertools::Itertools;
-use rayon::prelude::*;
 use smallvec::SmallVec;
-use std::collections::{HashMap, HashSet};
-use toml::map;
+use std::collections::HashMap;
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum HandStrength {
+    HighCard,
+    Pair,
+    TwoPairs,
+    ThreeOfAKind,
+    FullHouse,
+    FourOfAKind,
+    FiveOfAKind,
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum CardValue {
@@ -44,181 +51,6 @@ impl std::str::FromStr for CardValue {
             "A" => Ok(CardValue::Ace),
             _ => Err(anyhow::anyhow!("Invalid card value: {}", s)),
         }
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-
-enum HandStrength {
-    HighCard,
-    Pair,
-    TwoPairs,
-    ThreeOfAKind,
-    FullHouse,
-    FourOfAKind,
-    FiveOfAKind,
-}
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-struct Hand {
-    strength: HandStrength,
-    counts: SmallVec<[(i32, CardValue); 5]>,
-    cards: SmallVec<[CardValue; 5]>,
-}
-
-impl Hand {
-    pub fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let strength_ord = self.strength.cmp(&other.strength);
-        if strength_ord != std::cmp::Ordering::Equal {
-            return strength_ord;
-        }
-        // this would be for poker rules
-        //self.counts.cmp(&other.counts)
-        self.cards.cmp(&other.cards)
-    }
-}
-
-impl std::str::FromStr for Hand {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Hand> {
-        if !s.len() == 5 {
-            return Err(anyhow::anyhow!("Hand should have exactly 5 cards: {}", s));
-        }
-
-        let cards = s
-            .chars()
-            .map(|s| s.to_string().parse::<CardValue>().unwrap())
-            .collect::<SmallVec<[CardValue; 5]>>();
-
-        let mut counts = HashMap::<CardValue, i32>::new();
-        for card in cards.iter() {
-            counts.insert(card.clone(), counts.get(card).unwrap_or(&0) + 1);
-        }
-        // sort by count then tiebreak by card value
-        let counts: SmallVec<[(i32, CardValue); 5]> = counts
-            .into_iter()
-            .sorted_by_key(|(k, v)| (*v, *k))
-            .rev()
-            .map(|(card, count)| (count, card))
-            .collect();
-
-        if counts.len() == 1 {
-            return Ok({
-                Hand {
-                    strength: HandStrength::FiveOfAKind,
-                    counts,
-                    cards,
-                }
-            });
-        } else if counts.len() == 2 {
-            let first = counts.get(0).unwrap();
-            match first.0 {
-                4 => {
-                    return Ok({
-                        Hand {
-                            strength: HandStrength::FourOfAKind,
-                            counts,
-                            cards,
-                        }
-                    })
-                }
-                3 => {
-                    return Ok({
-                        Hand {
-                            strength: HandStrength::FullHouse,
-                            counts,
-                            cards,
-                        }
-                    })
-                }
-                _ => {
-                    return Err(anyhow::anyhow!(
-                        "Invalid hand with 2 different cards: {:?}",
-                        counts
-                    ))
-                }
-            }
-        } else if counts.len() == 3 {
-            let first = counts.get(0).unwrap();
-            let second = counts.get(1).unwrap();
-            match first.0 {
-                3 => {
-                    if second.0 == 2 {
-                        return Ok({
-                            Hand {
-                                strength: HandStrength::FullHouse,
-                                counts,
-                                cards,
-                            }
-                        });
-                    } else {
-                        return Ok({
-                            Hand {
-                                strength: HandStrength::ThreeOfAKind,
-                                counts,
-                                cards,
-                            }
-                        });
-                    }
-                }
-                2 => {
-                    if second.0 == 2 {
-                        return Ok({
-                            Hand {
-                                strength: HandStrength::TwoPairs,
-                                counts,
-                                cards,
-                            }
-                        });
-                    } else {
-                        return Err(anyhow::anyhow!(
-                            "Invalid hand with 3 different cards: {:?}",
-                            counts
-                        ));
-                    }
-                }
-                _ => {
-                    return Err(anyhow::anyhow!(
-                        "Invalid hand with 3 different cards: {:?}",
-                        counts
-                    ))
-                }
-            }
-        } else if counts.len() == 4 {
-            let first = counts.get(0).unwrap();
-            match first.0 {
-                2 => {
-                    return Ok({
-                        Hand {
-                            strength: HandStrength::Pair,
-                            counts,
-                            cards,
-                        }
-                    })
-                }
-                _ => {
-                    return Err(anyhow::anyhow!(
-                        "Invalid hand with 4 different cards: {:?}",
-                        counts
-                    ))
-                }
-            }
-        } else if counts.len() == 5 {
-            return Ok({
-                Hand {
-                    strength: HandStrength::HighCard,
-                    counts,
-                    cards,
-                }
-            });
-        } else {
-            return Err(anyhow::anyhow!(
-                "Invalid hand with {} different cards: {:?}",
-                counts.len(),
-                counts
-            ));
-        };
     }
 }
 
@@ -263,14 +95,14 @@ impl std::str::FromStr for CardValueP2 {
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-struct HandP2 {
+struct Hand<T> {
     strength: HandStrength,
-    counts: SmallVec<[(i32, CardValueP2); 5]>,
-    cards: SmallVec<[CardValueP2; 5]>,
+    counts: SmallVec<[(i32, T); 5]>, // not actually used but nice for logging and debugging
+    cards: SmallVec<[T; 5]>,
 }
 
-impl HandP2 {
-    pub fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+impl<T: Ord> Hand<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         let strength_ord = self.strength.cmp(&other.strength);
         if strength_ord != std::cmp::Ordering::Equal {
             return strength_ord;
@@ -281,10 +113,39 @@ impl HandP2 {
     }
 }
 
-impl std::str::FromStr for HandP2 {
+impl std::str::FromStr for Hand<CardValue> {
     type Err = Error;
 
-    fn from_str(s: &str) -> Result<HandP2> {
+    fn from_str(s: &str) -> Result<Hand<CardValue>> {
+        if !s.len() == 5 {
+            return Err(anyhow::anyhow!("Hand should have exactly 5 cards: {}", s));
+        }
+
+        let cards = s
+            .chars()
+            .map(|s| s.to_string().parse::<CardValue>().unwrap())
+            .collect::<SmallVec<[CardValue; 5]>>();
+
+        let mut counts = HashMap::<CardValue, i32>::new();
+        for card in cards.iter() {
+            counts.insert(card.clone(), counts.get(card).unwrap_or(&0) + 1);
+        }
+        // sort by count then tiebreak by card value
+        let counts: SmallVec<[(i32, CardValue); 5]> = counts
+            .into_iter()
+            .sorted_by_key(|(k, v)| (*v, *k))
+            .rev()
+            .map(|(card, count)| (count, card))
+            .collect();
+
+        parse_hand_from_card_counts(counts, cards)
+    }
+}
+
+impl std::str::FromStr for Hand<CardValueP2> {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Hand<CardValueP2>> {
         if !s.len() == 5 {
             return Err(anyhow::anyhow!("Hand should have exactly 5 cards: {}", s));
         }
@@ -309,7 +170,7 @@ impl std::str::FromStr for HandP2 {
 
         if counts.len() == 0 {
             return Ok({
-                HandP2 {
+                Hand::<CardValueP2> {
                     strength: HandStrength::FiveOfAKind,
                     counts,
                     cards,
@@ -318,131 +179,136 @@ impl std::str::FromStr for HandP2 {
         }
 
         // not all jacks, so counts is not empty
-
         counts[0].0 += joker_count as i32;
+        parse_hand_from_card_counts(counts, cards)
+    }
+}
 
-        if counts.len() == 1 {
-            return Ok({
-                HandP2 {
-                    strength: HandStrength::FiveOfAKind,
-                    counts,
-                    cards,
-                }
-            });
-        } else if counts.len() == 2 {
-            let first = counts.get(0).unwrap();
-            match first.0 {
-                4 => {
+fn parse_hand_from_card_counts<T: std::fmt::Debug>(
+    counts: SmallVec<[(i32, T); 5]>,
+    cards: SmallVec<[T; 5]>,
+) -> Result<Hand<T>> {
+    if counts.len() == 1 {
+        return Ok({
+            Hand {
+                strength: HandStrength::FiveOfAKind,
+                counts,
+                cards,
+            }
+        });
+    } else if counts.len() == 2 {
+        let first = counts.get(0).unwrap();
+        match first.0 {
+            4 => {
+                return Ok({
+                    Hand {
+                        strength: HandStrength::FourOfAKind,
+                        counts,
+                        cards,
+                    }
+                })
+            }
+            3 => {
+                return Ok({
+                    Hand {
+                        strength: HandStrength::FullHouse,
+                        counts,
+                        cards,
+                    }
+                })
+            }
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "Invalid hand with 2 different cards: {:?}",
+                    counts
+                ))
+            }
+        }
+    } else if counts.len() == 3 {
+        let first = counts.get(0).unwrap();
+        let second = counts.get(1).unwrap();
+        match first.0 {
+            3 => {
+                if second.0 == 2 {
                     return Ok({
-                        HandP2 {
-                            strength: HandStrength::FourOfAKind,
-                            counts,
-                            cards,
-                        }
-                    })
-                }
-                3 => {
-                    return Ok({
-                        HandP2 {
+                        Hand {
                             strength: HandStrength::FullHouse,
                             counts,
                             cards,
                         }
-                    })
-                }
-                _ => {
-                    return Err(anyhow::anyhow!(
-                        "Invalid hand with 2 different cards: {:?}",
-                        counts
-                    ))
-                }
-            }
-        } else if counts.len() == 3 {
-            let first = counts.get(0).unwrap();
-            let second = counts.get(1).unwrap();
-            match first.0 {
-                3 => {
-                    if second.0 == 2 {
-                        return Ok({
-                            HandP2 {
-                                strength: HandStrength::FullHouse,
-                                counts,
-                                cards,
-                            }
-                        });
-                    } else {
-                        return Ok({
-                            HandP2 {
-                                strength: HandStrength::ThreeOfAKind,
-                                counts,
-                                cards,
-                            }
-                        });
-                    }
-                }
-                2 => {
-                    if second.0 == 2 {
-                        return Ok({
-                            HandP2 {
-                                strength: HandStrength::TwoPairs,
-                                counts,
-                                cards,
-                            }
-                        });
-                    } else {
-                        return Err(anyhow::anyhow!(
-                            "Invalid hand with 3 different cards: {:?}",
-                            counts
-                        ));
-                    }
-                }
-                _ => {
-                    return Err(anyhow::anyhow!(
-                        "Invalid hand with 3 different cards: {:?}",
-                        counts
-                    ))
-                }
-            }
-        } else if counts.len() == 4 {
-            let first = counts.get(0).unwrap();
-            match first.0 {
-                2 => {
+                    });
+                } else {
                     return Ok({
-                        HandP2 {
-                            strength: HandStrength::Pair,
+                        Hand {
+                            strength: HandStrength::ThreeOfAKind,
                             counts,
                             cards,
                         }
-                    })
-                }
-                _ => {
-                    return Err(anyhow::anyhow!(
-                        "Invalid hand with 4 different cards: {:?}",
-                        counts
-                    ))
+                    });
                 }
             }
-        } else if counts.len() == 5 {
-            return Ok({
-                HandP2 {
-                    strength: HandStrength::HighCard,
-                    counts,
-                    cards,
+            2 => {
+                if second.0 == 2 {
+                    return Ok({
+                        Hand {
+                            strength: HandStrength::TwoPairs,
+                            counts,
+                            cards,
+                        }
+                    });
+                } else {
+                    return Err(anyhow::anyhow!(
+                        "Invalid hand with 3 different cards: {:?}",
+                        counts
+                    ));
                 }
-            });
-        } else {
-            return Err(anyhow::anyhow!(
-                "Invalid hand with {} different cards: {:?}",
-                counts.len(),
-                counts
-            ));
-        };
-    }
+            }
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "Invalid hand with 3 different cards: {:?}",
+                    counts
+                ))
+            }
+        }
+    } else if counts.len() == 4 {
+        let first = counts.get(0).unwrap();
+        match first.0 {
+            2 => {
+                return Ok({
+                    Hand {
+                        strength: HandStrength::Pair,
+                        counts,
+                        cards,
+                    }
+                })
+            }
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "Invalid hand with 4 different cards: {:?}",
+                    counts
+                ))
+            }
+        }
+    } else if counts.len() == 5 {
+        return Ok({
+            Hand {
+                strength: HandStrength::HighCard,
+                counts,
+                cards,
+            }
+        });
+    } else {
+        return Err(anyhow::anyhow!(
+            "Invalid hand with {} different cards: {:?}",
+            counts.len(),
+            counts
+        ));
+    };
 }
 
 #[derive(Debug)]
 struct PuzzleInput {
-    hands: Vec<(Hand, i32)>,
+    hands: Vec<(Hand<CardValue>, i32)>,
 }
 
 impl std::str::FromStr for PuzzleInput {
@@ -453,7 +319,10 @@ impl std::str::FromStr for PuzzleInput {
         let hands = lines
             .map(|line| {
                 let (cards, bet) = line.split_ascii_whitespace().collect_tuple().unwrap();
-                (cards.parse::<Hand>().unwrap(), bet.parse::<i32>().unwrap())
+                (
+                    cards.parse::<Hand<CardValue>>().unwrap(),
+                    bet.parse::<i32>().unwrap(),
+                )
             })
             .collect::<Vec<_>>();
         Ok(PuzzleInput { hands })
@@ -462,7 +331,7 @@ impl std::str::FromStr for PuzzleInput {
 
 #[derive(Debug)]
 struct PuzzleInputP2 {
-    hands: Vec<(HandP2, i32)>,
+    hands: Vec<(Hand<CardValueP2>, i32)>,
 }
 
 impl std::str::FromStr for PuzzleInputP2 {
@@ -474,7 +343,7 @@ impl std::str::FromStr for PuzzleInputP2 {
             .map(|line| {
                 let (cards, bet) = line.split_ascii_whitespace().collect_tuple().unwrap();
                 (
-                    cards.parse::<HandP2>().unwrap(),
+                    cards.parse::<Hand<CardValueP2>>().unwrap(),
                     bet.parse::<i32>().unwrap(),
                 )
             })
@@ -555,6 +424,6 @@ QQQJA 483";
         let input2 = puzzle_inputs::get_puzzle_input(7, 1);
         let res = part2(&input2);
         k9::snapshot!(res, "248750248");
-        k9::assert_equal!(res, EXAMPLE_OUTPUT_PART_2);
+        k9::assert_equal!(res, 248750248);
     }
 }
