@@ -25,7 +25,7 @@ fn get_line_wins(line: &str) -> usize {
 
 pub fn part1(input: &str) -> i32 {
     let mut total_points = 0;
-    for (i, line) in input.trim().lines().enumerate() {
+    for (_i, line) in input.trim().lines().enumerate() {
         let winning_count = get_line_wins(line);
         let cur_total = if winning_count >= 1 {
             2_i32.pow(winning_count as u32 - 1)
@@ -33,7 +33,7 @@ pub fn part1(input: &str) -> i32 {
             0
         };
         total_points += cur_total;
-        // println!("{i}: {winning_count}, {cur_total}, {total_points}");
+        // println!("{_i}: {winning_count}, {cur_total}, {total_points}");
     }
     total_points
 }
