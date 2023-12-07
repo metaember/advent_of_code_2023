@@ -1,10 +1,7 @@
 use anyhow::{Error, Result};
-use colored::*;
-use indicatif::ProgressIterator;
+use indicatif::ParallelProgressIterator;
 use itertools::Itertools;
 use rayon::prelude::*;
-use std::collections::{HashMap, HashSet};
-use toml::map;
 
 struct PuzzleInput {
     seeds: Vec<i64>,
@@ -94,7 +91,6 @@ impl PuzzleInput {
 
     pub fn get_closest_pairwise_location(&self) -> i64 {
         // iterate over seeds 2 by 2
-        println!("{}", self.seeds.len() / 2);
         (0..(self.seeds.len() / 2))
             .into_par_iter()
             .map(|i| {
@@ -108,6 +104,7 @@ impl PuzzleInput {
                 println!("{i}/{}", self.seeds.len() / 2);
                 locations.iter().min().unwrap().clone()
             })
+            .progress()
             .min()
             .unwrap()
     }
@@ -152,6 +149,7 @@ impl SmartMap {
         src
     }
 }
+
 fn get_map_for_current_lines(lines: &mut std::str::Lines) -> SmartMap {
     let lines = lines.skip(1);
     let mut map = SmartMap::default();
@@ -177,14 +175,131 @@ pub fn part1(input: &str) -> i64 {
     puzzle_input.get_closest_location()
 }
 
+/// Takes less than a minute with parallelization and release compilation mode
 pub fn part2(input: &str) -> i64 {
     let puzzle_input = input.parse::<PuzzleInput>().unwrap();
     puzzle_input.get_closest_pairwise_location()
 }
 
+/// basically instant
+pub fn part2_take2(input: &str) -> usize {
+    let (seeds, maps) = input.split_once("\n\n").unwrap();
+    let seeds = seeds
+        .split_ascii_whitespace()
+        .filter_map(|id| id.parse::<usize>().ok())
+        .collect::<Vec<_>>();
+
+    let maps = maps
+        .split("\n\n")
+        .map(|m| {
+            m.lines()
+                .skip(1)
+                .map(|l| {
+                    l.split_ascii_whitespace()
+                        .filter_map(|num| num.parse::<usize>().ok())
+                        .collect::<Vec<usize>>()
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+
+    // translate each seed interval into a range
+    // This array will hold the range of seeds at the start, and we'll
+    // repeatedly translate it until we get to the end of the maps
+    let mut arr = seeds
+        .chunks_exact(2)
+        .map(|ele| ele[0]..(ele[0] + ele[1]))
+        .collect::<Vec<_>>();
+
+    // iterate over each layer of the mappings
+    // seed -> soil then soil -> fertilizer -> ...-> water -> light -> temperature -> humidity -> location
+    for mut map in maps {
+        // sort by source
+        map.sort_unstable_by(|a, b| a[1].cmp(&b[1]));
+
+        // 1. First, we check if the current range is solved. If it is, we move to the next range.
+        // 2. We iterate over the list of mappings.
+        //     For each mapping, we check if the current range is fully contained in the mapping.
+        //     - If it is, we translate the current range and mark it as solved.
+        //     If it is not, we check if the current range is partially contained in the mapping.
+        //     - If it is, we split the current range into two ranges.
+        //     - We translate the first range and mark it as solved.
+        //     - We add the second range to the list of ranges to be solved.
+        // 3. Once we have translated all the ranges in the list of ranges, we return the minimum value of the start of the ranges.
+
+        // While our array of inputs is not fully translated
+        let mut idx = 0;
+        while arr.get(idx).is_some() {
+            // This is the current range we want to translate.
+            let input_range = arr[idx].clone();
+
+            // iterate over each range in the current layer of mappings
+            // until we find a mapping that contains the current range
+            // even if partially. Then we plit the current range into two ranges
+            // if needed, apply that mapping to the overlapping part
+            // and add the remaining part if any to the array of ranges to be translated
+            // we break because we have fully translated the current range
+            for m in map.iter() {
+                let destination = m[0];
+                let source = m[1];
+                let length = m[2];
+                let range = source..(source + length);
+
+                let input_start = input_range.start;
+                let input_end = input_range.end - 1;
+
+                let start_distance = input_start.saturating_sub(source);
+                let end_distance = input_end.saturating_sub(source);
+
+                if range.contains(&input_start) && range.contains(&input_end) {
+                    // range fully contains current range
+                    // we replace it in the array with the translated range
+                    arr[idx] = (destination + start_distance)..(destination + end_distance);
+                } else if range.contains(&input_start) && !range.contains(&input_end) {
+                    // range contains start of current range, but does not contain the end
+                    // we replace the overlapping part
+                    arr[idx] = (destination + start_distance)..(destination + length);
+
+                    // create a new range with the rest
+                    let next_range = (source + length)..input_end + 1;
+
+                    // println!(
+                    //     "Start Included, End Excluded -> Split Range: {:?} -> {:?}",
+                    //     current_start..source + length,
+                    //     next_range
+                    // );
+                    // println!("Output Range -> {:?}", arr[idx]);
+
+                    // push the new range to the array
+                    arr.insert(idx + 1, next_range);
+                } else if !range.contains(&input_start) && range.contains(&input_end) {
+                    // translate the current overlap
+                    arr[idx] = (destination)..(destination + end_distance);
+                    // create a new range with the rest
+                    let next_range = (input_start)..(source);
+
+                    // println!(
+                    //     "Start Excluded, End Included -> Split Range: {:?} -> {:?}",
+                    //     source..source + end_distance,
+                    //     next_range
+                    // );
+                    // println!("Output Range -> {:?}", arr[idx]);
+
+                    arr.insert(idx + 1, next_range);
+                }
+                // There is no default else case here, becase in that case the translation is 1:1 so
+                // we don't need to do anything to the range, just keep it and move on
+            }
+            idx += 1;
+        }
+    }
+
+    arr.iter().map(|r| r.start).min().unwrap()
+}
+
 #[cfg(test)]
 mod test_day_5 {
-    use super::{part1, part2};
+    use super::{part1, part2_take2};
     use crate::puzzle_inputs;
 
     /// Here 114 and 58 are not adjacent to anything
@@ -244,7 +359,7 @@ humidity-to-location map:
 
     #[test]
     fn day5_p2_example() {
-        let res = part2(EXAMPLE_INPUT_PART_2);
+        let res = part2_take2(EXAMPLE_INPUT_PART_2) as i64;
         k9::snapshot!(res, "46");
         k9::assert_equal!(res, EXAMPLE_OUTPUT_PART_2);
     }
@@ -252,7 +367,7 @@ humidity-to-location map:
     #[test]
     fn day5_p2_real() {
         let input2 = puzzle_inputs::get_puzzle_input(5, 1);
-        let res = part2(&input2);
+        let res = part2_take2(&input2) as i64;
         k9::snapshot!(res, "1493866");
         k9::assert_equal!(res, 1493866);
     }
