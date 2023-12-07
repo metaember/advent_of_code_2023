@@ -1,7 +1,10 @@
 use anyhow::{Error, Result};
 use colored::*;
+use indicatif::ProgressIterator;
 use itertools::Itertools;
+use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
+use toml::map;
 
 pub fn part1(input: &str) -> i32 {
     todo!()
@@ -36,7 +39,7 @@ Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11";
     }
 
     #[test]
-    fn day4_p1() {
+    fn day4_p1_real() {
         let input1 = puzzle_inputs::get_puzzle_input(4, 1);
         let res = part1(&input1);
         k9::snapshot!(res);
@@ -51,7 +54,7 @@ Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11";
     }
 
     #[test]
-    fn day4_p2_example() {
+    fn day4_p2_real() {
         let input2 = puzzle_inputs::get_puzzle_input(4, 1);
         let res = part2(&input2);
         k9::snapshot!(res);
