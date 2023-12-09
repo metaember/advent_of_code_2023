@@ -1,6 +1,6 @@
 use anyhow::{Error, Result};
 use colored::*;
-use indicatif::ProgressIterator;
+use indicatif::{ParallelProgressIterator, ProgressIterator};
 use itertools::Itertools;
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -28,8 +28,9 @@ mod test_day0 {
 
     #[test]
     fn day0_p1_example() {
-        k9::snapshot!(part1(EXAMPLE_INPUT_PART_1));
-        k9::assert_equal!(part1(EXAMPLE_INPUT_PART_1), EXAMPLE_OUTPUT_PART_1);
+        let res = part1(EXAMPLE_INPUT_PART_1);
+        k9::snapshot!(res);
+        k9::assert_equal!(res, EXAMPLE_OUTPUT_PART_1);
     }
 
     #[test]
