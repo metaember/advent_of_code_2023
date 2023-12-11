@@ -213,137 +213,80 @@ pub fn part2(input: &str) -> i32 {
     }
 
     visited.insert((cur_x, cur_y));
+    let after_start_pos = (cur_x, cur_y);
+    let mut before_start_pos = (0, 0);
 
     println!("Selected direction {} {}", prev_dx, prev_dy);
 
     while current_char != 'S' {
         let (dx, dy) = next_direction(prev_dx, prev_dy, current_char);
+        before_start_pos = (cur_x, cur_y);
         cur_x = cur_x + dx;
         cur_y = cur_y + dy;
-        // println!(
-        //     "current_char: {current_char}, prev: {prev_dx}, {prev_dy}, dx: {dx}, dy: {dy}, cur_x: {cur_x}, cur_y: {cur_y}"
-        // );
         current_char = input[cur_y as usize][cur_x as usize];
         prev_dx = dx;
         prev_dy = dy;
-        // println!("next_char {current_char}");
         curr_distance += 1;
         visited.insert((cur_x, cur_y));
     }
 
     let mut area = 0;
 
-    let mut inside_area_horizontal = HashSet::<(i32, i32)>::new();
+    // determine what shape the S was
+    println!(
+        "before / after start {},{} -> {},{}",
+        before_start_pos.0, before_start_pos.1, after_start_pos.0, after_start_pos.1
+    );
+    let dx = after_start_pos.0 - before_start_pos.0;
+    let dy = after_start_pos.1 - before_start_pos.1;
+
+    println!("dx, dy: {}, {}", dx, dy);
+    let start_char = match (dx, dy) {
+        (0, -2) => '|',
+        (0, 2) => '|',
+        (2, 0) => '-',
+        (-2, 0) => '-',
+        (1, -1) => 'F',
+        (-1, -1) => '7',
+        (1, 1) => 'J',
+        (-1, 1) => 'L',
+        _ => panic!("Invalid start char"),
+    };
+    println!("start_char: {}", start_char);
+
+    // replace it
+    let mut input = input.clone();
+    input[start_line][start_col] = start_char;
 
     for (i, line) in input.iter().enumerate() {
         let mut intersections = 0;
-        let mut state = State::Outside;
-        let mut last_state = State::Outside;
-
+        let mut edge_enter_char = 'X';
         for (j, &c) in line.iter().enumerate() {
             if visited.contains(&(j as i32, i as i32)) {
-                if c == '-' {
-                    assert_eq!(state, State::Edge);
-                    // print!("{}", c.to_string().blue());
-                } else if c == 'L' || c == 'F' || c == 'S' {
-                    assert_ne!(state, State::Edge);
-                    last_state = state;
-                    state = State::Edge;
-                } else if c == '7' || c == 'J' {
-                    assert_eq!(state, State::Edge);
-                    assert_ne!(last_state, State::Edge);
-                    if last_state == State::Inside {
-                        state = State::Outside;
+                if c == '|' {
+                    intersections += 1;
+                    print!("{}", c.to_string().red());
+                } else if c == 'L' || c == 'F' {
+                    edge_enter_char = c;
+                    print!("{}", c.to_string().yellow());
+                } else if c == 'J' || c == '7' {
+                    if (c == 'J' && edge_enter_char == 'F') || (c == '7' && edge_enter_char == 'L')
+                    {
+                        intersections += 1;
+                        print!("{}", c.to_string().red());
                     } else {
-                        state = State::Inside;
-                    }
-                } else if c == '|' {
-                    assert_ne!(state, State::Edge);
-                    if state == State::Inside {
-                        state = State::Outside;
-                    } else {
-                        state = State::Inside;
+                        print!("{}", c.to_string().yellow());
                     }
                 } else {
-                    intersections += 1;
+                    print!("{}", c.to_string().blue());
                 }
-                print!("{}", c.to_string().red());
             } else {
-                if state == State::Inside {
+                if intersections % 2 == 1 {
                     area += 1;
                     print!("{}", c.to_string().green());
                 } else {
                     print!("{}", c.to_string());
                 }
-                // if intersections % 2 == 1 {
-                //     area += 1;
-                //     print!("{}", c.to_string().green());
-                //     // } else {
-                //     //     print!("{}", c.to_string().yellow());
-                //     // }
-                //     // inside_area_horizontal.insert((i as i32, j as i32));
-                // } else {
-                //     print!("{}", c);
-                // }
-            }
-        }
-        println!("");
-    }
-
-    for (i, line) in input.iter().enumerate() {
-        let mut intersections = 0;
-        if i != 1 {
-            continue;
-        }
-        let mut state = State::Outside;
-        let mut last_state = State::Outside;
-        for (j, &c) in line.iter().enumerate() {
-            if visited.contains(&(j as i32, i as i32)) {
-                if c == '-' {
-                    assert_eq!(state, State::Edge);
-                    // print!("{}", c.to_string().blue());
-                } else if c == 'L' || c == 'F' || c == 'S' {
-                    assert_ne!(state, State::Edge);
-                    last_state = state;
-                    state = State::Edge;
-                } else if c == '7' || c == 'J' {
-                    assert_eq!(state, State::Edge);
-                    assert_ne!(last_state, State::Edge);
-                    if last_state == State::Inside {
-                        state = State::Outside;
-                    } else {
-                        state = State::Inside;
-                    }
-                    state = last_state;
-                } else if c == '|' {
-                    assert_ne!(state, State::Edge);
-                    if state == State::Inside {
-                        state = State::Outside;
-                    } else {
-                        state = State::Inside;
-                    }
-                } else {
-                    intersections += 1;
-                }
-                print!("{}", c.to_string().red());
-                println!("{:?} {:?}", state, last_state);
-            } else {
-                if state == State::Inside {
-                    print!("{}", c.to_string().green());
-                } else {
-                    print!("{}", c.to_string());
-                }
-                println!("{:?} {:?}", state, last_state);
-                // if intersections % 2 == 1 {
-                //     area += 1;
-                //     print!("{}", c.to_string().green());
-                //     // } else {
-                //     //     print!("{}", c.to_string().yellow());
-                //     // }
-                //     // inside_area_horizontal.insert((i as i32, j as i32));
-                // } else {
-                //     print!("{}", c);
-                // }
             }
         }
         println!("");
@@ -399,7 +342,7 @@ L.L7LFJ|||||FJL7||LJ
 L7JLJL-JLJLJL--JLJ.L";
     const EXAMPLE_OUTPUT_PART_1: i32 = 4;
     const EXAMPLE_OUTPUT_PART_2: i32 = 4;
-    const EXAMPLE_OUTPUT_PART_2_2: i32 = 10;
+    const EXAMPLE_OUTPUT_PART_2_2: i32 = 8;
     const EXAMPLE_OUTPUT_PART_2_3: i32 = 10;
 
     #[test]
@@ -420,29 +363,29 @@ L7JLJL-JLJLJL--JLJ.L";
     #[test]
     fn day10_p2_example_1() {
         let res = part2(EXAMPLE_INPUT_PART_2);
-        k9::snapshot!(res, "7");
+        k9::snapshot!(res, "4");
         k9::assert_equal!(res, EXAMPLE_OUTPUT_PART_2);
     }
 
     #[test]
     fn day10_p2_example_2() {
         let res = part2(EXAMPLE_INPUT_PART_2_2);
-        k9::snapshot!(res, "25");
-        k9::assert_equal!(res, EXAMPLE_OUTPUT_PART_2);
+        k9::snapshot!(res, "8");
+        k9::assert_equal!(res, EXAMPLE_OUTPUT_PART_2_2);
     }
 
     #[test]
     fn day10_p2_example_3() {
         let res = part2(EXAMPLE_INPUT_PART_2_3);
-        k9::snapshot!(res, "0");
-        k9::assert_equal!(res, EXAMPLE_OUTPUT_PART_2);
+        k9::snapshot!(res, "10");
+        k9::assert_equal!(res, EXAMPLE_OUTPUT_PART_2_3);
     }
 
     #[test]
     fn day10_p2_real() {
         let input2 = puzzle_inputs::get_puzzle_input(10, 1);
         let res = part2(&input2);
-        k9::snapshot!(res, "827");
-        k9::assert_equal!(res, EXAMPLE_OUTPUT_PART_2);
+        k9::snapshot!(res, "579");
+        k9::assert_equal!(res, 579);
     }
 }
