@@ -1,11 +1,5 @@
-use anyhow::{Error, Result};
-use chrono_tz::Chile::Continental;
 use colored::*;
-use indicatif::{ParallelProgressIterator, ProgressIterator};
-use itertools::Itertools;
-use rayon::prelude::*;
-use std::collections::{HashMap, HashSet};
-use toml::{de, map};
+use std::collections::HashSet;
 
 pub fn parse_input(input: &str) -> Vec<Vec<char>> {
     input
@@ -49,15 +43,10 @@ pub fn next_direction(dx: i32, dy: i32, current_char: char) -> (i32, i32) {
     }
 }
 
-pub fn part1(input: &str) -> i32 {
-    let input = parse_input(input);
+/// Find the coordinates of the start
+fn find_start(input: &Vec<Vec<char>>) -> (usize, usize) {
     let mut start_line = 0;
     let mut start_col = 0;
-
-    let height = input.len();
-    let width = input[0].len();
-
-    // Find start
     'outer: for (i, line) in input.iter().enumerate() {
         for (j, c) in line.iter().enumerate() {
             if *c == 'S' {
@@ -67,7 +56,17 @@ pub fn part1(input: &str) -> i32 {
             }
         }
     }
+    (start_line, start_col)
+}
 
+/// Find the direction of the first step
+fn find_first_step(
+    start_col: i32,
+    start_line: i32,
+    input: &Vec<Vec<char>>,
+    width: usize,
+    height: usize,
+) -> (char, i32, i32, i32, i32, i32) {
     // go around the loop assuming it's a single loop
     let mut current_char = 'X'; // anything except for `S`
     let mut curr_distance = 0;
@@ -78,9 +77,6 @@ pub fn part1(input: &str) -> i32 {
     let mut prev_dx = 0;
     let mut prev_dy = 0;
 
-    // println!("Start at {cur_x}, {cur_y}");
-
-    // Find the first step
     for &(dx, dy) in vec![(1, 0), (-1, 0), (0, 1), (0, -1)].iter() {
         let candidate_x = cur_x + dx;
         let candidate_y = cur_y + dy;
@@ -96,7 +92,6 @@ pub fn part1(input: &str) -> i32 {
 
         let next_char = input[candidate_y as usize][candidate_x as usize];
 
-        // println!("{cur_x}, {cur_y} considering direction {dx}, {dy}: got char {next_char} at {candidate_x}, {candidate_y}");
         if next_char == '|' && dx == 0 {
         } else if next_char == '-' && dy == 0 {
         } else if next_char == 'L' && (dx == -1 || dy == 1) {
@@ -115,102 +110,50 @@ pub fn part1(input: &str) -> i32 {
         curr_distance += 1;
         break;
     }
+    (current_char, cur_x, cur_y, prev_dx, prev_dy, curr_distance)
+}
 
-    println!("Selected direction {} {}", prev_dx, prev_dy);
+pub fn part1(input: &str) -> i32 {
+    let input = parse_input(input);
 
+    let height = input.len();
+    let width = input[0].len();
+
+    // Find start
+    let (start_line, start_col) = find_start(&input);
+
+    // Find the first step
+    let (mut current_char, mut cur_x, mut cur_y, mut prev_dx, mut prev_dy, mut curr_distance) =
+        find_first_step(start_col as i32, start_line as i32, &input, width, height);
+
+    // Follow the loop counting the length
     while current_char != 'S' {
         let (dx, dy) = next_direction(prev_dx, prev_dy, current_char);
         cur_x = cur_x + dx;
         cur_y = cur_y + dy;
-        // println!(
-        //     "current_char: {current_char}, prev: {prev_dx}, {prev_dy}, dx: {dx}, dy: {dy}, cur_x: {cur_x}, cur_y: {cur_y}"
-        // );
         current_char = input[cur_y as usize][cur_x as usize];
         prev_dx = dx;
         prev_dy = dy;
-        // println!("next_char {current_char}");
         curr_distance += 1;
     }
 
     curr_distance / 2
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-enum State {
-    Outside,
-    Inside,
-    Edge,
-}
-
 pub fn part2(input: &str) -> i32 {
     let input = parse_input(input);
-    let mut start_line = 0;
-    let mut start_col = 0;
 
     let height = input.len();
     let width = input[0].len();
+    let mut visited = HashSet::<(i32, i32)>::new();
 
     // Find start
-    'outer: for (i, line) in input.iter().enumerate() {
-        for (j, c) in line.iter().enumerate() {
-            if *c == 'S' {
-                start_line = i;
-                start_col = j;
-                break 'outer;
-            }
-        }
-    }
-
-    // go around the loop assuming it's a single loop
-    let mut current_char = 'X'; // anything except for `S`
-    let mut curr_distance = 0;
-
-    let mut cur_x = start_col as i32;
-    let mut cur_y = start_line as i32;
-
-    let mut prev_dx = 0;
-    let mut prev_dy = 0;
-
-    // println!("Start at {cur_x}, {cur_y}");
-
-    let mut visited = HashSet::<(i32, i32)>::new();
-    visited.insert((cur_x, cur_y));
+    let (start_line, start_col) = find_start(&input);
+    visited.insert((start_col as i32, start_line as i32));
 
     // Find the first step
-    for &(dx, dy) in vec![(1, 0), (-1, 0), (0, 1), (0, -1)].iter() {
-        let candidate_x = cur_x + dx;
-        let candidate_y = cur_y + dy;
-
-        // continue if this is outside the bounds of the map
-        if candidate_x < 0
-            || candidate_y < 0
-            || candidate_x >= width as i32
-            || candidate_y >= height as i32
-        {
-            continue;
-        }
-
-        let next_char = input[candidate_y as usize][candidate_x as usize];
-
-        // println!("{cur_x}, {cur_y} considering direction {dx}, {dy}: got char {next_char} at {candidate_x}, {candidate_y}");
-        if next_char == '|' && dx == 0 {
-        } else if next_char == '-' && dy == 0 {
-        } else if next_char == 'L' && (dx == -1 || dy == 1) {
-        } else if next_char == 'J' && (dx == 1 || dy == 1) {
-        } else if next_char == 'F' && (dx == -1 || dy == -1) {
-        } else if next_char == '7' && (dx == 1 || dy == -1) {
-        } else {
-            continue;
-        }
-        prev_dx = dx;
-        prev_dy = dy;
-
-        cur_x = candidate_x;
-        cur_y = candidate_y;
-        current_char = next_char;
-        curr_distance += 1;
-        break;
-    }
+    let (mut current_char, mut cur_x, mut cur_y, mut prev_dx, mut prev_dy, _) =
+        find_first_step(start_col as i32, start_line as i32, &input, width, height);
 
     visited.insert((cur_x, cur_y));
     let after_start_pos = (cur_x, cur_y);
@@ -218,6 +161,7 @@ pub fn part2(input: &str) -> i32 {
 
     println!("Selected direction {} {}", prev_dx, prev_dy);
 
+    // Follow the loop, this time marking the visited cells
     while current_char != 'S' {
         let (dx, dy) = next_direction(prev_dx, prev_dy, current_char);
         before_start_pos = (cur_x, cur_y);
@@ -226,7 +170,6 @@ pub fn part2(input: &str) -> i32 {
         current_char = input[cur_y as usize][cur_x as usize];
         prev_dx = dx;
         prev_dy = dy;
-        curr_distance += 1;
         visited.insert((cur_x, cur_y));
     }
 
