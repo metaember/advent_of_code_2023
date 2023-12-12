@@ -1,11 +1,5 @@
-use anyhow::{Error, Result};
-use colored::*;
-use indicatif::{ParallelProgressIterator, ProgressIterator};
 use itertools::Itertools;
 use memoize::memoize;
-use rayon::prelude::*;
-use std::collections::{HashMap, HashSet};
-use toml::map;
 
 fn parse_input(input: &str) -> Vec<usize> {
     input
