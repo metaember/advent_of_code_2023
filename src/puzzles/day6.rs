@@ -110,7 +110,7 @@ pub fn solve_poly(time: i64, distance: i64) -> i64 {
 #[cfg(test)]
 mod test_day_6 {
     use super::{part1, part2};
-    use crate::{puzzle_inputs, puzzles::day6::solve_poly};
+    use crate::puzzle_inputs;
 
     /// Here 114 and 58 are not adjacent to anything
     const EXAMPLE_INPUT_PART_1: &str = "\
