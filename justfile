@@ -19,7 +19,7 @@ new DAY:
     sed -i '' -e 's/get_puzzle_input(0/get_puzzle_input({{DAY}}/g' "src/puzzles/day{{DAY}}.rs"
     git co -b "day{{DAY}}"
     cargo run -- input "{{DAY}}"
-    git add "src/puzzles/day{{DAY}}.rs" "src/puzzles.rs" "inputs/day{{DAY}}.txt"
+    git add "src/puzzles/day{{DAY}}.rs" "src/puzzles.rs" "inputs/day_{{DAY}}.txt"
     git commit -m "Add day {{DAY}} start"
     @echo "Day {{DAY}} created in a new git branch."
 
