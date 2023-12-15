@@ -12,3 +12,11 @@ pub fn transpose<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
         })
         .collect()
 }
+
+/// Flip a vec of vecs
+pub fn flip<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
+    assert!(!v.is_empty());
+    v.into_iter()
+        .map(|row| row.into_iter().rev().collect::<Vec<T>>())
+        .collect()
+}
