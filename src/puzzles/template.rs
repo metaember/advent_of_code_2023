@@ -5,6 +5,8 @@ use itertools::Itertools;
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use toml::map;
+use memoize::memoize;
+
 
 pub fn part1(input: &str) -> i32 {
     todo!()
