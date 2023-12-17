@@ -29,9 +29,10 @@ impl Puzzle {
         x: usize,
         y: usize,
         direction: Direction,
+        first: bool,
         mut visited: &mut HashSet<(usize, usize, Direction)>,
     ) {
-        display(input, visited);
+        // display(input, visited);
         // println!("Going {direction:?} from ({x}, {y})");
         if visited.contains(&(x, y, direction)) {
             // we already visited, no need to double count
@@ -44,12 +45,18 @@ impl Puzzle {
         match direction {
             Direction::North | Direction::South => {
                 let next_mirror = match direction {
-                    Direction::North => self.bycol[x].iter().filter(|&m| m.y < y).last(),
-                    Direction::South => self.bycol[x].iter().filter(|&m| m.y > y).next(),
+                    Direction::North => self.bycol[x]
+                        .iter()
+                        .filter(|&m| if first { m.y <= y } else { m.y < y })
+                        .last(),
+                    Direction::South => self.bycol[x]
+                        .iter()
+                        .filter(|&m| if first { m.y >= y } else { m.y > y })
+                        .next(),
                     _ => panic!("Already filtered out other directions"),
                 };
 
-                println!("next: {next_mirror:?}");
+                // println!("next: {next_mirror:?}");
                 match next_mirror {
                     Some(mirror) => {
                         // mark the squares as visited
@@ -62,7 +69,14 @@ impl Puzzle {
                         let next_directions = mirror.reflect(direction);
                         // recurse
                         for next_direction in next_directions {
-                            self.propagate(input, mirror.x, mirror.y, next_direction, &mut visited);
+                            self.propagate(
+                                input,
+                                mirror.x,
+                                mirror.y,
+                                next_direction,
+                                false,
+                                &mut visited,
+                            );
                         }
                     }
                     None => {
@@ -76,22 +90,22 @@ impl Puzzle {
             }
             Direction::East | Direction::West => {
                 let next_mirror = match direction {
-                    Direction::East => {
-                        if x == 0 && y == 0 {
-                            self.byrow[y].iter().filter(|&m| m.x >= x).next()
-                        } else {
-                            self.byrow[y].iter().filter(|&m| m.x > x).next()
-                        }
-                    }
-                    Direction::West => self.byrow[y].iter().filter(|&m| m.x < x).last(),
+                    Direction::East => self.byrow[y]
+                        .iter()
+                        .filter(|&m| if first { m.x >= x } else { m.x > x })
+                        .next(),
+                    Direction::West => self.byrow[y]
+                        .iter()
+                        .filter(|&m| if first { m.x <= x } else { m.x < x })
+                        .last(),
                     _ => panic!("Already filtered out other directions"),
                 };
-                println!("next: {next_mirror:?}");
+                // println!("next: {next_mirror:?}");
                 match next_mirror {
                     Some(mirror) => {
                         // mark the squares as visited
                         for i in range(x, mirror.x) {
-                            println!("{i}, {x}, {direction:?}");
+                            // println!("{i}, {x}, {direction:?}");
                             visited.insert((i, y, direction));
                             // early return if we already visited
                         }
@@ -99,13 +113,20 @@ impl Puzzle {
                         let next_directions = mirror.reflect(direction);
                         // recurse
                         for next_direction in next_directions {
-                            self.propagate(input, mirror.x, mirror.y, next_direction, &mut visited);
+                            self.propagate(
+                                input,
+                                mirror.x,
+                                mirror.y,
+                                next_direction,
+                                false,
+                                &mut visited,
+                            );
                         }
                     }
                     None => {
                         // mark the squares as visited, return None
                         for i in range_inc(x, self.edge(direction)) {
-                            println!("{i}, {x}, {direction:?}");
+                            // println!("{i}, {x}, {direction:?}");
                             visited.insert((i, y, direction));
                             // early return if we already visited
                         }
@@ -210,10 +231,7 @@ impl Mirror {
 }
 
 fn display(input: &str, visited: &HashSet<(usize, usize, Direction)>) {
-    println!();
-    println!("  0123456789");
     for (y, line) in input.lines().enumerate() {
-        print!("{y} ");
         for (x, c) in line.chars().enumerate() {
             if visited.contains(&(x, y, Direction::East))
                 || visited.contains(&(x, y, Direction::West))
@@ -272,37 +290,7 @@ pub fn part1(input: &str) -> usize {
     let input = input.trim();
     let puzzle = parse_input(input);
     let mut visited = HashSet::<(usize, usize, Direction)>::new();
-    puzzle.propagate(input, 0, 0, Direction::East, &mut visited);
-
-    display(input, &visited);
-    // println!("{:#?}", puzzle.bycol);
-
-    println!();
-    println!("visited unique dirs: {}", visited.len());
-
-    println!("dims rows: {} cols:{}", puzzle.nrows, puzzle.ncols);
-
-    const EXAMPLE_INPUT_PART_1_ENERGIZED: &str = "
-######....
-.#...#....
-.#...#####
-.#...##...
-.#...##...
-.#...##...
-.#..####..
-########..
-.#######..
-.#...#.#..";
-
-    println!(
-        "{:?}",
-        visited
-            .iter()
-            .map(|(x, y, _)| (x, y))
-            .sorted()
-            .dedup()
-            .collect::<Vec<_>>()
-    );
+    puzzle.propagate(input, 0, 0, Direction::East, true, &mut visited);
 
     visited
         .into_iter()
@@ -312,13 +300,82 @@ pub fn part1(input: &str) -> usize {
 }
 
 pub fn part2(input: &str) -> usize {
-    todo!()
+    let input = input.trim();
+    let puzzle = parse_input(input);
+
+    let mut max_energized = 0;
+
+    // from NORTH
+    let start_y = 0;
+    for start_x in 0..puzzle.ncols {
+        let mut visited = HashSet::<(usize, usize, Direction)>::new();
+        puzzle.propagate(
+            input,
+            start_x,
+            start_y,
+            Direction::South,
+            true,
+            &mut visited,
+        );
+        let energized = visited
+            .into_iter()
+            .map(|(x, y, _)| (x, y))
+            .collect::<HashSet<(usize, usize)>>()
+            .len();
+        max_energized = max_energized.max(energized);
+    }
+
+    // from SOUTH
+    let start_y = puzzle.nrows - 1;
+    for start_x in 0..puzzle.ncols {
+        let mut visited = HashSet::<(usize, usize, Direction)>::new();
+        puzzle.propagate(
+            input,
+            start_x,
+            start_y,
+            Direction::North,
+            true,
+            &mut visited,
+        );
+        let energized = visited
+            .into_iter()
+            .map(|(x, y, _)| (x, y))
+            .collect::<HashSet<(usize, usize)>>()
+            .len();
+        max_energized = max_energized.max(energized);
+    }
+
+    // from EAST
+    let start_x = puzzle.ncols - 1;
+    for start_y in 0..puzzle.nrows {
+        let mut visited = HashSet::<(usize, usize, Direction)>::new();
+        puzzle.propagate(input, start_x, start_y, Direction::West, true, &mut visited);
+        let energized = visited
+            .into_iter()
+            .map(|(x, y, _)| (x, y))
+            .collect::<HashSet<(usize, usize)>>()
+            .len();
+        max_energized = max_energized.max(energized);
+    }
+
+    // from WEST
+    let start_x = 0;
+    for start_y in 0..puzzle.nrows {
+        let mut visited = HashSet::<(usize, usize, Direction)>::new();
+        puzzle.propagate(input, start_x, start_y, Direction::East, true, &mut visited);
+        let energized = visited
+            .into_iter()
+            .map(|(x, y, _)| (x, y))
+            .collect::<HashSet<(usize, usize)>>()
+            .len();
+        max_energized = max_energized.max(energized);
+    }
+
+    max_energized
 }
 
 #[cfg(test)]
 mod test_day16 {
-    use itertools::Itertools;
-
     use super::{parse_input, part1, part2, Direction};
     use crate::puzzle_inputs;
     use std::collections::HashSet;
@@ -350,7 +407,7 @@ mod test_day16 {
     const EXAMPLE_INPUT_PART_2: &str = EXAMPLE_INPUT_PART_1;
 
     const EXAMPLE_OUTPUT_PART_1: usize = 46;
-    const EXAMPLE_OUTPUT_PART_2: usize = 467835;
+    const EXAMPLE_OUTPUT_PART_2: usize = 51;
 
     #[test]
     fn day16_p1_example() {
@@ -364,7 +421,7 @@ mod test_day16 {
         let input = EXAMPLE_INPUT_PART_1.trim();
         let puzzle = parse_input(input);
         let mut visited = HashSet::<(usize, usize, Direction)>::new();
-        puzzle.propagate(input, 0, 0, Direction::East, &mut visited);
+        puzzle.propagate(input, 0, 0, Direction::East, true, &mut visited);
 
         let energized_cells = EXAMPLE_INPUT_PART_1_ENERGIZED
             .trim()
@@ -398,7 +455,7 @@ mod test_day16 {
     #[test]
     fn day16_p2_example() {
         let res = part2(EXAMPLE_INPUT_PART_2);
-        k9::snapshot!(res);
+        k9::snapshot!(res, "51");
         k9::assert_equal!(res, EXAMPLE_OUTPUT_PART_2);
     }
 
@@ -406,7 +463,7 @@ mod test_day16 {
     fn day16_p2_real() {
         let input2 = puzzle_inputs::get_puzzle_input(16, 1);
         let res = part2(&input2);
-        k9::snapshot!(res);
-        k9::assert_equal!(res, EXAMPLE_OUTPUT_PART_2);
+        k9::snapshot!(res, "8225");
+        k9::assert_equal!(res, 8225);
     }
 }
