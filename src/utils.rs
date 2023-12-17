@@ -20,3 +20,5 @@ pub fn flip<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
         .map(|row| row.into_iter().rev().collect::<Vec<T>>())
         .collect()
 }
+
+use std;

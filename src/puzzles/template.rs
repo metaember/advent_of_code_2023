@@ -2,11 +2,11 @@ use anyhow::{Error, Result};
 use colored::*;
 use indicatif::{ParallelProgressIterator, ProgressIterator};
 use itertools::Itertools;
+use memoize::memoize;
 use rayon::prelude::*;
+use smallvec::{smallvec, SmallVec};
 use std::collections::{HashMap, HashSet};
 use toml::map;
-use memoize::memoize;
-
 
 pub fn part1(input: &str) -> i32 {
     todo!()
